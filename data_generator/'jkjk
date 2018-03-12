@@ -1,0 +1,171 @@
+import math
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from enum import Enum
+from animate_particle import AnimatedScatter
+
+class ParticleSimulator(object):
+    def __init__(self,
+            init_pos=np.array([2.0, 0.0]),
+            init_vel=np.array([0.0, 0.0]),
+            MASS=np.array([0.5]),
+            L=np.array([2.0]),
+            G=np.array([0.0,-9.81]),
+            K=np.array([6.0])),
+            DAMPING=np.array([0.005]),
+            output_vel=True,
+            output_mass=False,
+            output_l=False,
+            output_g=False,
+            output_damping=False,
+            output_k=False):
+
+        self.x=init_pos
+        self.v=init_vel
+
+        self.MASS=MASS
+        self.L=L
+        self.G=G 
+        self.K=K
+        self.DAMPING=DAMPING
+
+        self.output_vel=output_vel
+        self.output_mass=output_mass
+        self.output_l=output_l
+        self.output_g=output_g
+        self.output_k=output_k
+        self.output_damping=output_damping
+
+    def params_at(self,t):
+        params = [self.pos()]
+        if (self.output_vel):
+            params+= [self.vel()]
+        if (self.output_mass):
+            params+= [self.mass(t)]
+        if (self.output_l):
+            params+= [self.l(t)]
+        if (self.output_g):
+            params+= [self.g(t)]
+        if (self.output_k):
+            params+= [self.k(t)]
+        if (self.output_damping):
+            params+= [self.damping(t)]
+        return np.concatenate(params, axis=0)
+
+    def pos_initializer(self):
+        def init(self):
+            return self.x
+        return init
+    
+    def pos_initializer_is(self, func)
+        self.initialize_pos = func
+
+    def initialize_pos(self):
+        return self.x = self.pos_initializer()
+
+    def pos(self):
+        return self.x
+    def pos_is(self,pos):
+        self.x = pos
+    def vel(self):
+        return self.v
+    def vel_is(self,vel):
+        self.v = vel 
+
+    def mass(self,t):
+        return self.MASS 
+    def l(self,t):
+        return self.L 
+    def g(self,t):
+        return self.G 
+    def stiffness(self,t):
+        return self.K 
+    def damping(self,t):
+        return DAMPING 
+
+    def spring_f(self,x,v,t):
+        norm_x = np.linalg.norm(x)
+        unit_x = x/np.linalg.norm(x)
+        return self.k(t)*(self.l(t)-norm_x)*x - self.damping(t)*v
+
+    def accel(self,x,v,t):
+        total_F = self.g(t) + self.spring_f(x,v,t)
+        return total_F/self.mass(t)
+    
+    def rk4_step(self,t, dt): 
+        x1 = self.pos()
+        v1 = self.vel()
+        a1 = self.accel(x1, v1, t)
+    
+        x2 = self.pos() + 0.5*v1*dt
+        v2 = self.vel() + 0.5*a1*dt
+        a2 = self.accel(x2, v2, t+dt/2.0)
+    
+        x3 = self.pos() + 0.5*v2*dt
+        v3 = self.vel() + 0.5*a2*dt
+        a3 = self.accel(x3, v3, t+dt/2.0)
+    
+        x4 = self.pos() + v3*dt
+        v4 = self.vel() + a3*dt
+        a4 = self.accel(x4, v4, t+dt)
+    
+        xf = self.pos() + (dt/6.0)*(v1 + 2*v2 + 2*v3 + v4)
+        vf = self.vel() + (dt/6.0)*(a1 + 2*a2 + 2*a3 + a4)
+
+        self.pos_is(xf)
+        self.vel_is(vf)
+
+        return self.params_at(t+dt)
+
+if __name__ == '__main__':
+    # SETUP
+    n_features = 4 
+    dt = 1.0/30.0;
+    T = 120  
+    N = 5  
+
+    sim_data = np.zeros([N,T,n_features])
+    simulator = ParticleSimulator() 
+    # initialize the particle around the center
+    def pos_init_func():
+        x_sample = np.random.uniform(-4.0,4.0)
+        y_sample = np.random.uniform(-4.0,4.0)
+        while(y_sample**2 + x_sample**2 > 16.0):
+            x_sample = np.random.uniform(-4.0,4.0)
+            y_sample = np.random.uniform(-4.0,4.0)
+        return [x_sample,y_sample]
+
+    simulator.pos_initializer_is(pos_init_func)
+    for s in range(N):
+        simulator.initialize_pos()
+        sim_data[s,0] = simulator.params_at(0)
+        for t in range(1,T):
+            state = simulator.rk4_step(t,dt)
+            sim_data[s,t] = state 
+
+    data_flattened = sim_data.reshape(N,T*n_features)
+    torch.save(data_flattened, open('particle_spring.pt', 'wb'))
+
+    anim = AnimatedScatter(sim_data[0],T,dt)
+    anim.show()
+    anim = AnimatedScatter(sim_data[N-1],T,dt)
+    anim.show()
+    #anim.save()
+    #def draw(state):
+    #    #print("state",state[:,0])
+    #    plt.plot(np.arange(T), state[:,0], 'g', linewidth = 2.0)
+    #    plt.plot(np.arange(T), state[:,1], 'b', linewidth = 2.0)
+    #
+    #plt.figure(figsize=(30,10))
+    #plt.title('Input Data', fontsize=30) 
+    #plt.xlabel('x', fontsize=20)
+    #plt.ylabel('y', fontsize=20)
+    #plt.xticks(fontsize=20)
+    #plt.yticks(fontsize=20)
+    #draw(state[0])
+    #plt.savefig('input.pdf')
+    #plt.close()
+
+    
+
